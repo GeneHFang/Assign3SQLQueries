@@ -1,3 +1,14 @@
+-- Consider a Library schema with relations :
+-- • BOOK (BookID, Title, PublisherName)
+-- • BOOK_AUTHORS (BookID, AuthorName)
+-- • PUBLISHER (Name, Address, Phone)
+-- • BOOK_COPIES (BookID, BranchID, NumberOfCopies)
+-- • BOOK_LOANS (BookID, BranchID, CardNumber, DateOut, DueDate)
+-- • LIBRARY_BRANCH (BranchID, BranchName, Address)
+-- • BORROWER (CardNumber, Name, Address, Phone)
+
+
+--SQL DDL Statements
 CREATE TABLE PUBLISHER
 ( Name VARCHAR(40) NOT NULL,
   Address VARCHAR(95) NOT NULL,
@@ -58,6 +69,7 @@ ON DELETE CASCADE ON UPDATE CASCADE,
 ON DELETE CASCADE ON UPDATE CASCADE);
 
 
+--Example Data
 INSERT INTO `LIBRARY_BRANCH` (`BranchId`, `BranchName`, `Address`) VALUES
 ('br1', 'Sharpstown', 'Sharpstown USA'),
 ('br2', 'Central', 'Central USA'),
@@ -107,7 +119,8 @@ INSERT INTO `BOOK_LOANS` (`BookID`, `BranchId`, `CardNumber`, `DateOut`, `DueDat
 ('b6', 'br3', 'c1',  '2019-12-19',  '2020-01-07'),
 ('b2', 'br1', 'c2',  '2018-09-23',  '2018-10-21');
 
---2)a)  
+
+--2)a)  How many copies of the book titled “The Lost Tribe” are owned by the library branch whose name is “Sharpstown”?
 SELECT NumberOfCopies as CopiesOfTheLostTribe
       FROM (SELECT BookID, NumberOfCopies
             FROM BOOK_COPIES, BOOK_COPIES
@@ -117,7 +130,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
       WHERE BOOK.BookID = SharpstownBooks.BookID
       AND Title='The Lost Tribe';
 
-  --b)  
+  --b)  How many copies of the book titled “The Lost Tribe” are owned by each library branch?
     SELECT BranchName, NumberOfCopies AS CopiesOfTheLostTribe
       FROM (SELECT BookID, NumberOfCopies, BranchName
             FROM BOOK_COPIES, BOOK_COPIES
@@ -126,7 +139,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
       WHERE BOOK.BookID = AllBranchBooks.BookID
       AND Title='The Lost Tribe';
   
-  --c)
+  --c)Retrieve the names of all borrowers who do not have any books checked out.
       SELECT Name
       FROM BORROWER
       WHERE Name NOT IN (
@@ -144,7 +157,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
       USING (Name)
       WHERE Loaners.Name IS NULL;
 
-  --d)
+  --d)For each book that is loaned out from the Sharpstown branch and whose DueDate is prior to “September 1, 2018”, retrieve the book title, the borrower’s name, and the borrower’s address.
     SELECT Title, Name, Address
       FROM(
           SELECT BookID, BORROWER.CardNumber, Address, Name
@@ -159,7 +172,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
           ) AS SharpstownBeforeSept, BOOK
       WHERE BOOK.BookID = SharpstownBeforeSept.BookID;
 
-  --e)
+  --e)For each book authored (or coauthored) by Stephen King, retrieve the title and the number of copies owned by the library branch whose name is “Central”.
     SELECT Title AS StephenKingBooks, NumberOfCopies as NumberOfCopiesAtCentral
       FROM (
             SELECT BranchName, BookID, NumberOfCopies
@@ -171,7 +184,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
       INNER JOIN BOOK ON BOOK.BookID = CentralBooks.BookID
       WHERE AuthorName='Stephen King';
 
-  --f)
+  --f)Retrieve the names, addresses, and number of books checked out for all borrowers who have more than five books checked out
     SELECT Name, Address, NumberOfBooksBorrowed
       FROM (
             SELECT Name, Address, COUNT(Name) as NumberOfBooksBorrowed
@@ -181,7 +194,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
             ) AS LoansAndNumber
       WHERE NumberOfBooksBorrowed > 5;
 
-  --g)
+  --g)Retrieve all book titles that are available in “Sharpstown” branch but not in “Morristown” branch.
     SELECT Title as TitlesInSharpstownButNotMorristown
       FROM (
         SELECT BookID
@@ -199,7 +212,7 @@ SELECT NumberOfCopies as CopiesOfTheLostTribe
         ) AS BookIDsInSharpstown
       INNER JOIN BOOK ON BOOK.BookID=BookIDsInSharpstown.BookID;
 
-  --h)
+  --h) Retrieve book titles that are available in all library branches in the database.
     SELECT Title as BooksAvailableInAllBranches
       FROM BOOK
       WHERE NOT EXISTS (
