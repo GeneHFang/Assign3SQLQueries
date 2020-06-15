@@ -1,0 +1,214 @@
+CREATE TABLE PUBLISHER
+( Name VARCHAR(40) NOT NULL,
+  Address VARCHAR(95) NOT NULL,
+ Phone VARCHAR(10), 
+ PRIMARY KEY (Name) );
+ 
+CREATE TABLE LIBRARY_BRANCH
+(BranchID VARCHAR(6) NOT NULL,
+ BranchName VARCHAR(40) NOT NULL,
+ Address VARCHAR(95) NOT NULL,
+ PRIMARY KEY (BranchID) );
+
+ CREATE TABLE BORROWER
+ (CardNumber VARCHAR(6) NOT NULL,
+ Name VARCHAR(40) NOT NULL,
+ Address VARCHAR(95) NOT NULL,
+ Phone VARCHAR(10),
+ PRIMARY KEY (CardNumber) );
+ 
+
+CREATE TABLE BOOK
+(BookID VARCHAR(6) NOT NULL,
+Title VARCHAR(40) NOT NULL,
+PublisherName VARCHAR(40),
+UNIQUE(BookID),
+PRIMARY KEY (BookID),
+FOREIGN KEY (PublisherName) REFERENCES PUBLISHER(Name)
+ON DELETE SET NULL ON UPDATE CASCADE);
+
+ 
+CREATE TABLE BOOK_AUTHORS
+( BookID VARCHAR(6) NOT NULL,
+ AuthorName VARCHAR(40) NOT NULL,
+PRIMARY KEY (BookID, AuthorName),
+FOREIGN KEY (BookID) REFERENCES BOOK(BookID)
+ON DELETE CASCADE ON UPDATE CASCADE);
+
+ CREATE TABLE BOOK_COPIES
+( BookID VARCHAR(6) NOT NULL,
+  BranchID VARCHAR(6) NOT NULL,
+  NumberOfCopies INT NOT NULL,
+PRIMARY KEY (BookID,BranchID),
+FOREIGN KEY (BookID) REFERENCES BOOK(BookID)
+ON DELETE CASCADE ON UPDATE CASCADE,
+FOREIGN KEY (BranchID) REFERENCES LIBRARY_BRANCH(BranchID)
+ON DELETE CASCADE ON UPDATE CASCADE);
+
+CREATE TABLE BOOK_LOANS
+(BookID VARCHAR(6) NOT NULL,
+  BranchID VARCHAR(6) NOT NULL,
+  CardNumber VARCHAR(6) NOT NULL,
+  DateOut DATE NOT NULL,
+  DueDate DATE NOT NULL,
+ PRIMARY KEY (BookID, BranchID, CardNumber),
+ FOREIGN KEY (BookID) REFERENCES BOOK(BookID) 
+ON DELETE CASCADE ON UPDATE CASCADE,
+ FOREIGN KEY (BranchID) REFERENCES LIBRARY_BRANCH(BranchID)
+ON DELETE CASCADE ON UPDATE CASCADE);
+
+
+INSERT INTO `LIBRARY_BRANCH` (`BranchId`, `BranchName`, `Address`) VALUES
+('br1', 'Sharpstown', 'Sharpstown USA'),
+('br2', 'Central', 'Central USA'),
+('br3', 'Morristown', 'Morristown USA');
+
+
+INSERT INTO `BORROWER` (`CardNumber`, `Name`, `Address`, `Phone`) VALUES
+('c1', 'Ron',  'Arizona', '1234567'),
+('c2', 'Stephan',  'Texas', '6745329'),
+('c3', 'Ian',  'California', '534261');
+
+
+INSERT INTO `PUBLISHER` (`Name`, `Address`, `Phone`) VALUES
+('Picador', 'London, United Kingdom', '123456'),
+('Bloomsbury', 'London, United Kingdom', '453216'),
+('Doubleday', 'New York, United States', '9786456');
+
+
+
+
+INSERT INTO `BOOK` (`BookID`, `Title`, `PublisherName`) VALUES
+('b1', 'The Lost Tribe', 'Picador'),
+('b2', 'Harry Potter', 'Bloomsbury'),
+('b3', 'The Shining', 'Doubleday'),
+('b4', 'The Outsider', 'Doubleday'),
+('b5', 'Pet Sematary', 'Doubleday'),
+('b6', 'The Stand', 'Doubleday');
+
+
+INSERT INTO `BOOK_AUTHORS` (`BookID`, `AuthorName`) VALUES
+('b1', 'Mark Lee'),
+('b2', 'J. K. Rowling'),
+('b3', 'Stephen King');
+
+INSERT INTO `BOOK_COPIES` (`BookID`, `BranchID`, `NumberOfCopies`) VALUES
+('b1', 'br1', 5),
+('b1', 'br2', 15),
+('b1', 'br3', 2),
+('b3', 'br2', 10);
+
+INSERT INTO `BOOK_LOANS` (`BookID`, `BranchId`, `CardNumber`, `DateOut`, `DueDate`) VALUES
+('b1', 'br1', 'c1',  '2018-08-01',  '2018-08-30'),
+('b2', 'br2', 'c1',  '2018-07-23',  '2018-08-21'),
+('b2', 'br3', 'c1',  '2018-08-08',  '2018-09-10'),
+('b3', 'br1', 'c1',  '2018-09-01',  '2018-09-29'),
+('b5', 'br2', 'c1',  '2019-12-21',  '2020-01-05'),
+('b6', 'br3', 'c1',  '2019-12-19',  '2020-01-07'),
+('b2', 'br1', 'c2',  '2018-09-23',  '2018-10-21');
+
+--2)a)  
+SELECT NumberOfCopies as CopiesOfTheLostTribe
+      FROM (SELECT BookID, NumberOfCopies
+            FROM BOOK_COPIES, BOOK_COPIES
+            WHERE BOOK_COPIES.BranchID = LIBRARY_BRANCH.BranchID
+            AND BranchName = 'Sharpstown'
+            ) AS SharpstownBooks, BOOK
+      WHERE BOOK.BookID = SharpstownBooks.BookID
+      AND Title='The Lost Tribe';
+
+  --b)  
+    SELECT BranchName, NumberOfCopies AS CopiesOfTheLostTribe
+      FROM (SELECT BookID, NumberOfCopies, BranchName
+            FROM BOOK_COPIES, BOOK_COPIES
+            WHERE BOOK_COPIES.BranchID = LIBRARY_BRANCH.BranchID
+            ) AS AllBranchBooks, BOOK
+      WHERE BOOK.BookID = AllBranchBooks.BookID
+      AND Title='The Lost Tribe';
+  
+  --c)
+      SELECT Name
+      FROM BORROWER
+      WHERE Name NOT IN (
+        SELECT Name
+        FROM BORROWER, BOOK_LOANS
+        WHERE BORROWER.CardNumber = BOOK_LOANS.CardNumber
+        );
+  
+      SELECT Name
+      FROM BORROWER
+      LEFT JOIN (SELECT Name
+                FROM BORROWER, BOOK_LOANS
+                WHERE BORROWER.CardNumber = BOOK_LOANS.CardNumber
+                ) as Loaners
+      USING (Name)
+      WHERE Loaners.Name IS NULL;
+
+  --d)
+    SELECT Title, Name, Address
+      FROM(
+          SELECT BookID, BORROWER.CardNumber, Address, Name
+          FROM (
+            SELECT CardNumber, BookID
+            FROM BOOK_LOANS, LIBRARY_BRANCH
+            WHERE DueDate < '2018-09-01'
+            AND BOOK_LOANS.BranchID = LIBRARY_BRANCH.BranchID
+            AND BranchName = 'Sharpstown'
+            ) AS SharpstownBorrowerBook, BORROWER
+          WHERE BORROWER.CardNumber = SharpstownBorrowerBook.CardNumber
+          ) AS SharpstownBeforeSept, BOOK
+      WHERE BOOK.BookID = SharpstownBeforeSept.BookID;
+
+  --e)
+    SELECT Title AS StephenKingBooks, NumberOfCopies as NumberOfCopiesAtCentral
+      FROM (
+            SELECT BranchName, BookID, NumberOfCopies
+            FROM BOOK_COPIES, LIBRARY_BRANCH
+            WHERE BOOK_COPIES.BranchID = LIBRARY_BRANCH.BranchID
+            AND BranchName='Central'
+            ) AS CentralBooks
+      INNER JOIN BOOK_AUTHORS ON BOOK_AUTHORS.BookID = CentralBooks.BookID
+      INNER JOIN BOOK ON BOOK.BookID = CentralBooks.BookID
+      WHERE AuthorName='Stephen King';
+
+  --f)
+    SELECT Name, Address, NumberOfBooksBorrowed
+      FROM (
+            SELECT Name, Address, COUNT(Name) as NumberOfBooksBorrowed
+            FROM BORROWER
+            INNER JOIN BOOK_LOANS ON BOOK_LOANS.CardNumber=BORROWER.CardNumber
+            GROUP BY (Name)
+            ) AS LoansAndNumber
+      WHERE NumberOfBooksBorrowed > 5;
+
+  --g)
+    SELECT Title as TitlesInSharpstownButNotMorristown
+      FROM (
+        SELECT BookID
+        FROM BOOK_COPIES
+        INNER JOIN LIBRARY_BRANCH ON BOOK_COPIES.BranchID = LIBRARY_BRANCH.BranchID
+        WHERE BookID NOT IN (
+          SELECT BookID
+          FROM BOOK_COPIES
+          INNER JOIN LIBRARY_BRANCH ON BOOK_COPIES.BranchID = LIBRARY_BRANCH.BranchID
+          WHERE BranchName='Morristown'
+          AND NumberOfCopies>0
+        )
+        AND BranchName='Sharpstown'
+        AND NumberOfCopies>0
+        ) AS BookIDsInSharpstown
+      INNER JOIN BOOK ON BOOK.BookID=BookIDsInSharpstown.BookID;
+
+  --h)
+    SELECT Title as BooksAvailableInAllBranches
+      FROM BOOK
+      WHERE NOT EXISTS (
+        SELECT LB.BranchID
+        FROM LIBRARY_BRANCH AS LB
+        WHERE NOT EXISTS (
+          SELECT BC.BranchID
+          FROM BOOK_COPIES AS BC
+          WHERE BC.BranchID = LB.BranchID
+          AND BC.BookID = BOOK.BookID
+        )
+      );
